@@ -18,6 +18,7 @@
 
 #include "amx.h"
 #include "../core.h"
+#include "../streamer_component_api.h"
 
 using namespace Utility;
 
@@ -211,16 +212,9 @@ void Utility::executeFinalAreaCallbacks(int areaid)
 	}
 	for (std::vector<std::tuple<int, int> >::const_iterator c = callbacks.begin(); c != callbacks.end(); ++c)
 	{
-		for (std::set<AMX*>::iterator amx = core->getData()->interfaces.begin(); amx != core->getData()->interfaces.end(); ++amx)
-		{
-			int amxIndex = 0;
-			if (!amx_FindPublic(*amx, "OnPlayerLeaveDynamicArea", &amxIndex))
-			{
-				amx_Push(*amx, static_cast<cell>(std::get<0>(*c)));
-				amx_Push(*amx, static_cast<cell>(std::get<1>(*c)));
-				amx_Exec(*amx, NULL, amxIndex);
-			}
-		}
+		const int areaId = std::get<0>(*c);
+		const int playerId = std::get<1>(*c);
+		for (auto* h : GetStreamerEventHandlers()) h->onPlayerLeaveDynamicArea(playerId, areaId);
 	}
 }
 
@@ -243,16 +237,9 @@ void Utility::executeFinalAreaCallbacksForAllAreas(AMX *amx, bool ignoreInterfac
 	}
 	for (std::vector<std::tuple<int, int> >::const_iterator c = callbacks.begin(); c != callbacks.end(); ++c)
 	{
-		for (std::set<AMX*>::iterator a = core->getData()->interfaces.begin(); a != core->getData()->interfaces.end(); ++a)
-		{
-			int amxIndex = 0;
-			if (!amx_FindPublic(*a, "OnPlayerLeaveDynamicArea", &amxIndex))
-			{
-				amx_Push(*a, static_cast<cell>(std::get<0>(*c)));
-				amx_Push(*a, static_cast<cell>(std::get<1>(*c)));
-				amx_Exec(*a, NULL, amxIndex);
-			}
-		}
+		const int areaId = std::get<0>(*c);
+		const int playerId = std::get<1>(*c);
+		for (auto* h : GetStreamerEventHandlers()) h->onPlayerLeaveDynamicArea(playerId, areaId);
 	}
 }
 
@@ -266,17 +253,7 @@ void Utility::logError(const char *format, ...)
 	va_end(args);
 	if (core->getData()->errorCallbackEnabled)
 	{
-		for (std::set<AMX*>::iterator a = core->getData()->interfaces.begin(); a != core->getData()->interfaces.end(); ++a)
-		{
-			cell amxAddress = 0;
-			int amxIndex = 0;
-			if (!amx_FindPublic(*a, "Streamer_OnPluginError", &amxIndex))
-			{
-				amx_PushString(*a, &amxAddress, NULL, buffer, 0, 0);
-				amx_Exec(*a, NULL, amxIndex);
-				amx_Release(*a, amxAddress);
-			}
-		}
+		for (auto* h : GetStreamerEventHandlers()) h->onPluginError(buffer);
 	}
 	else
 	{

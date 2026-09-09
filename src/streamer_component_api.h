@@ -35,14 +35,14 @@ constexpr UID kStreamerExtensionUID = UID(0x53744d72506c6758ULL);      // "StMrP
 // ============================================================================
 // Events — C++ equivalent of PAWN-public dispatchers.
 //
-// An IStreamerComponent host fires these callbacks in ADDITION to the PAWN-script
-// dispatch (AMX amx_FindPublic). Register via IStreamerComponent::addEventHandler().
+// An IStreamerComponent host fires these callbacks to registered C++ handlers.
+// Register via IStreamerComponent::addEventHandler().
 // All methods have default no-op implementations so implementers only override
 // what they need.
 //
 // For "decision" events (Edit/Select/Shoot) the handler may return a
 // StreamerHandlerResult that controls propagation to further handlers:
-//   Continue    — not consuming the event, pass to the next handler and scripts
+//   Continue    — not consuming the event, pass to the next handler
 //   Consume     — swallow the event, don't pass downstream (Edit/Select semantics)
 //   Veto        — deny the action (only meaningful for Shoot)
 // ============================================================================
@@ -75,8 +75,13 @@ struct IStreamerEventHandler
 	virtual void onDynamicTextLabelStreamOut(int labelId, int forPlayerId) {}
 	virtual void onDynamicCheckpointStreamIn(int cpId, int forPlayerId) {}
 	virtual void onDynamicCheckpointStreamOut(int cpId, int forPlayerId) {}
+	virtual void onDynamicRaceCheckpointStreamIn(int cpId, int forPlayerId) {}
+	virtual void onDynamicRaceCheckpointStreamOut(int cpId, int forPlayerId) {}
 	virtual void onDynamicMapIconStreamIn(int iconId, int forPlayerId) {}
 	virtual void onDynamicMapIconStreamOut(int iconId, int forPlayerId) {}
+	virtual void onDynamicActorStreamIn(int actorId, int forPlayerId) {}
+	virtual void onDynamicActorStreamOut(int actorId, int forPlayerId) {}
+	virtual void onPluginError(const char* message) { (void)message; }
 
 	// Decision events.
 	virtual StreamerHandlerResult onPlayerEditDynamicObject(int playerId, int objectId, int response,
@@ -92,6 +97,11 @@ struct IStreamerEventHandler
 	/// Return Veto to deny the shot, Continue otherwise.
 	virtual StreamerHandlerResult onPlayerShootDynamicObject(int playerId, int weaponId, int objectId,
 		float x, float y, float z)
+	{
+		return StreamerHandlerResult::Continue;
+	}
+	virtual StreamerHandlerResult onPlayerGiveDamageDynamicActor(int playerId, int actorId, float amount,
+		int weaponId, int bodypart)
 	{
 		return StreamerHandlerResult::Continue;
 	}
@@ -307,7 +317,7 @@ struct IStreamerComponent : public IExtension
 IStreamerComponent *GetStreamerExtension();
 
 // Flat list of currently-registered C++ event handlers (defined in streamer_component_api.cpp).
-// Used by callbacks.cpp / streamer.cpp to forward events alongside the AMX-public dispatch.
+// Used by callbacks.cpp / streamer.cpp / utility to forward events to C++ handlers.
 #include <vector>
 const std::vector<IStreamerEventHandler*>& GetStreamerEventHandlers();
 

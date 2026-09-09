@@ -520,19 +520,11 @@ void Streamer::executeCallbacks()
 		std::swap(areaLeaveCallbacks, callbacks);
 		for (std::multimap<int, std::tuple<int, int> >::reverse_iterator c = callbacks.rbegin(); c != callbacks.rend(); ++c)
 		{
-			std::unordered_map<int, Item::SharedArea>::iterator a = core->getData()->areas.find(std::get<0>(c->second));
-			if (a != core->getData()->areas.end())
+			const int areaId = std::get<0>(c->second);
+			const int playerId = std::get<1>(c->second);
+			if (core->getData()->areas.find(areaId) != core->getData()->areas.end())
 			{
-				for (std::set<AMX*>::iterator i = core->getData()->interfaces.begin(); i != core->getData()->interfaces.end(); ++i)
-				{
-					int amxIndex = 0;
-					if (!amx_FindPublic(*i, "OnPlayerLeaveDynamicArea", &amxIndex))
-					{
-						amx_Push(*i, static_cast<cell>(std::get<0>(c->second)));
-						amx_Push(*i, static_cast<cell>(std::get<1>(c->second)));
-						amx_Exec(*i, NULL, amxIndex);
-					}
-				}
+				for (auto* h : GetStreamerEventHandlers()) h->onPlayerLeaveDynamicArea(playerId, areaId);
 			}
 		}
 	}
@@ -542,19 +534,11 @@ void Streamer::executeCallbacks()
 		std::swap(areaEnterCallbacks, callbacks);
 		for (std::multimap<int, std::tuple<int, int> >::reverse_iterator c = callbacks.rbegin(); c != callbacks.rend(); ++c)
 		{
-			std::unordered_map<int, Item::SharedArea>::iterator a = core->getData()->areas.find(std::get<0>(c->second));
-			if (a != core->getData()->areas.end())
+			const int areaId = std::get<0>(c->second);
+			const int playerId = std::get<1>(c->second);
+			if (core->getData()->areas.find(areaId) != core->getData()->areas.end())
 			{
-				for (std::set<AMX*>::iterator i = core->getData()->interfaces.begin(); i != core->getData()->interfaces.end(); ++i)
-				{
-					int amxIndex = 0;
-					if (!amx_FindPublic(*i, "OnPlayerEnterDynamicArea", &amxIndex))
-					{
-						amx_Push(*i, static_cast<cell>(std::get<0>(c->second)));
-						amx_Push(*i, static_cast<cell>(std::get<1>(c->second)));
-						amx_Exec(*i, NULL, amxIndex);
-					}
-				}
+				for (auto* h : GetStreamerEventHandlers()) h->onPlayerEnterDynamicArea(playerId, areaId);
 			}
 		}
 	}
@@ -564,18 +548,8 @@ void Streamer::executeCallbacks()
 		std::swap(objectMoveCallbacks, callbacks);
 		for (std::vector<int>::const_iterator c = callbacks.begin(); c != callbacks.end(); ++c)
 		{
-			std::unordered_map<int, Item::SharedObject>::iterator o = core->getData()->objects.find(*c);
-			if (o != core->getData()->objects.end())
+			if (core->getData()->objects.find(*c) != core->getData()->objects.end())
 			{
-				for (std::set<AMX*>::iterator i = core->getData()->interfaces.begin(); i != core->getData()->interfaces.end(); ++i)
-				{
-					int amxIndex = 0;
-					if (!amx_FindPublic(*i, "OnDynamicObjectMoved", &amxIndex))
-					{
-						amx_Push(*i, static_cast<cell>(*c));
-						amx_Exec(*i, NULL, amxIndex);
-					}
-				}
 				for (auto* h : GetStreamerEventHandlers()) h->onDynamicObjectMoved(*c);
 			}
 		}
@@ -637,17 +611,6 @@ void Streamer::executeCallbacks()
 					break;
 				}
 			}
-			for (std::set<AMX*>::iterator i = core->getData()->interfaces.begin(); i != core->getData()->interfaces.end(); ++i)
-			{
-				int amxIndex = 0;
-				if (!amx_FindPublic(*i, "Streamer_OnItemStreamIn", &amxIndex))
-				{
-					amx_Push(*i, static_cast<cell>(std::get<2>(*c)));
-					amx_Push(*i, static_cast<cell>(std::get<1>(*c)));
-					amx_Push(*i, static_cast<cell>(std::get<0>(*c)));
-					amx_Exec(*i, NULL, amxIndex);
-				}
-			}
 			for (auto* h : GetStreamerEventHandlers())
 			{
 				int type = std::get<0>(*c), id = std::get<1>(*c), forPlayer = std::get<2>(*c);
@@ -656,6 +619,7 @@ void Streamer::executeCallbacks()
 					case STREAMER_TYPE_OBJECT:         h->onDynamicObjectStreamIn(id, forPlayer); break;
 					case STREAMER_TYPE_PICKUP:         h->onDynamicPickupStreamIn(id, forPlayer); break;
 					case STREAMER_TYPE_CP:             h->onDynamicCheckpointStreamIn(id, forPlayer); break;
+					case STREAMER_TYPE_RACE_CP:        h->onDynamicRaceCheckpointStreamIn(id, forPlayer); break;
 					case STREAMER_TYPE_MAP_ICON:       h->onDynamicMapIconStreamIn(id, forPlayer); break;
 					case STREAMER_TYPE_3D_TEXT_LABEL:  h->onDynamicTextLabelStreamIn(id, forPlayer); break;
 				}
@@ -719,17 +683,6 @@ void Streamer::executeCallbacks()
 					break;
 				}
 			}
-			for (std::set<AMX*>::iterator i = core->getData()->interfaces.begin(); i != core->getData()->interfaces.end(); ++i)
-			{
-				int amxIndex = 0;
-				if (!amx_FindPublic(*i, "Streamer_OnItemStreamOut", &amxIndex))
-				{
-					amx_Push(*i, static_cast<cell>(std::get<2>(*c)));
-					amx_Push(*i, static_cast<cell>(std::get<1>(*c)));
-					amx_Push(*i, static_cast<cell>(std::get<0>(*c)));
-					amx_Exec(*i, NULL, amxIndex);
-				}
-			}
 			for (auto* h : GetStreamerEventHandlers())
 			{
 				int type = std::get<0>(*c), id = std::get<1>(*c), forPlayer = std::get<2>(*c);
@@ -738,6 +691,7 @@ void Streamer::executeCallbacks()
 					case STREAMER_TYPE_OBJECT:         h->onDynamicObjectStreamOut(id, forPlayer); break;
 					case STREAMER_TYPE_PICKUP:         h->onDynamicPickupStreamOut(id, forPlayer); break;
 					case STREAMER_TYPE_CP:             h->onDynamicCheckpointStreamOut(id, forPlayer); break;
+					case STREAMER_TYPE_RACE_CP:        h->onDynamicRaceCheckpointStreamOut(id, forPlayer); break;
 					case STREAMER_TYPE_MAP_ICON:       h->onDynamicMapIconStreamOut(id, forPlayer); break;
 					case STREAMER_TYPE_3D_TEXT_LABEL:  h->onDynamicTextLabelStreamOut(id, forPlayer); break;
 				}
