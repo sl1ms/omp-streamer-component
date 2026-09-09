@@ -340,6 +340,17 @@ bool IStreamerComponent_isValidPickup(int pickupId)
 	return core->getData()->pickups.find(pickupId) != core->getData()->pickups.end();
 }
 
+bool IStreamerComponent_getPickupPos(int pickupId, float &x, float &y, float &z, int &world)
+{
+	auto it = core->getData()->pickups.find(pickupId);
+	if (it == core->getData()->pickups.end()) return false;
+	x = it->second->position[0];
+	y = it->second->position[1];
+	z = it->second->position[2];
+	world = Utility::getFirstValueInContainer(it->second->worlds);
+	return true;
+}
+
 // --- 3D Text Labels -------------------------------------------------------------------------
 
 int IStreamerComponent_createTextLabel(const char *text, uint32_t color,
@@ -512,6 +523,47 @@ bool IStreamerComponent_destroyCheckpoint(int cpId)
 bool IStreamerComponent_isValidCheckpoint(int cpId)
 {
 	return core->getData()->checkpoints.find(cpId) != core->getData()->checkpoints.end();
+}
+
+// --- Areas ----------------------------------------------------------------------------------
+
+int IStreamerComponent_createSphere(float posX, float posY, float posZ, float size,
+	int worldId, int interiorId, int playerId, int priority)
+{
+	if (core->getData()->getGlobalMaxItems(STREAMER_TYPE_AREA) == core->getData()->areas.size())
+	{
+		return INVALID_STREAMER_ID;
+	}
+	int areaId = Item::Area::identifier.get();
+	Item::SharedArea area = std::make_shared<Item::Area>();
+	area->amx = nullptr;
+	area->areaId = areaId;
+	area->spectateMode = true;
+	area->type = STREAMER_AREA_TYPE_SPHERE;
+	area->position = Eigen::Vector3f(posX, posY, posZ);
+	area->comparableSize = size * size;
+	area->size = size;
+	Utility::addToContainer(area->worlds, worldId);
+	Utility::addToContainer(area->interiors, interiorId);
+	Utility::addToContainer(area->players, playerId);
+	area->priority = priority;
+	core->getGrid()->addArea(area);
+	core->getData()->areas.insert(std::make_pair(areaId, area));
+	return areaId;
+}
+
+bool IStreamerComponent_destroyArea(int areaId)
+{
+	Utility::executeFinalAreaCallbacks(areaId);
+	auto it = core->getData()->areas.find(areaId);
+	if (it == core->getData()->areas.end()) return false;
+	Utility::destroyArea(it);
+	return true;
+}
+
+bool IStreamerComponent_isValidArea(int areaId)
+{
+	return core->getData()->areas.find(areaId) != core->getData()->areas.end();
 }
 
 // --- Attach helpers -------------------------------------------------------------------------
@@ -814,6 +866,23 @@ bool IStreamerComponent_setActorVirtualWorld(int actorId, int worldId)
 	return true;
 }
 
+bool IStreamerComponent_setVisibleItems(int type, int count, int playerId)
+{
+	if (count < 0) return false;
+	return Utility::setMaxVisibleItems(type, static_cast<std::size_t>(count), playerId);
+}
+
+void IStreamerComponent_toggleErrorCallback(bool enabled)
+{
+	core->getData()->errorCallbackEnabled = enabled;
+}
+
+bool IStreamerComponent_setTickRate(int tickRate)
+{
+	if (tickRate <= 0) return false;
+	return core->getStreamer()->setTickRate(static_cast<std::size_t>(tickRate));
+}
+
 // --- Extension wrapper ----------------------------------------------------------------------
 // Concrete class that vtable-forwards to the C-style functions above.
 
@@ -861,6 +930,8 @@ public:
 	{ return IStreamerComponent_createPickup(m, t, x, y, z, w, i, p, sd, a, pr); }
 	bool destroyPickup(int id) override { return IStreamerComponent_destroyPickup(id); }
 	bool isValidPickup(int id) override { return IStreamerComponent_isValidPickup(id); }
+	bool getPickupPos(int id, float &x, float &y, float &z, int &world) override
+	{ return IStreamerComponent_getPickupPos(id, x, y, z, world); }
 
 	int createTextLabel(const char *t, uint32_t col, float x, float y, float z, float dd, int ap, int av, bool los,
 		int w, int i, int p, float sd, int a, int pr) override
@@ -878,6 +949,11 @@ public:
 	{ return IStreamerComponent_createCheckpoint(x, y, z, size, w, i, p, sd, a, pr); }
 	bool destroyCheckpoint(int id) override { return IStreamerComponent_destroyCheckpoint(id); }
 	bool isValidCheckpoint(int id) override { return IStreamerComponent_isValidCheckpoint(id); }
+
+	int createSphere(float x, float y, float z, float size, int w, int i, int p, int pr) override
+	{ return IStreamerComponent_createSphere(x, y, z, size, w, i, p, pr); }
+	bool destroyArea(int id) override { return IStreamerComponent_destroyArea(id); }
+	bool isValidArea(int id) override { return IStreamerComponent_isValidArea(id); }
 
 	int createActor(int modelId, float x, float y, float z, float rotation,
 		bool invulnerable, float health, float streamDistance,
@@ -900,6 +976,11 @@ public:
 	bool setActorInvulnerable(int id, bool inv) override { return IStreamerComponent_setActorInvulnerable(id, inv); }
 	int getActorVirtualWorld(int id) override { return IStreamerComponent_getActorVirtualWorld(id); }
 	bool setActorVirtualWorld(int id, int w) override { return IStreamerComponent_setActorVirtualWorld(id, w); }
+
+	bool setVisibleItems(int type, int count, int playerId) override
+	{ return IStreamerComponent_setVisibleItems(type, count, playerId); }
+	void toggleErrorCallback(bool enabled) override { IStreamerComponent_toggleErrorCallback(enabled); }
+	bool setTickRate(int tickRate) override { return IStreamerComponent_setTickRate(tickRate); }
 
 	// --- Telemetry (VS:RP fork) ---------------------------------------------------
 

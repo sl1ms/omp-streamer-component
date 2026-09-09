@@ -163,6 +163,7 @@ struct IStreamerComponent : public IExtension
 		int areaId = -1, int priority = 0) = 0;
 	virtual bool destroyPickup(int pickupId) = 0;
 	virtual bool isValidPickup(int pickupId) = 0;
+	virtual bool getPickupPos(int pickupId, float& outX, float& outY, float& outZ, int& outWorld) = 0;
 
 	// ============================================================================
 	// 3D Text Labels
@@ -200,6 +201,16 @@ struct IStreamerComponent : public IExtension
 		int areaId = -1, int priority = 0) = 0;
 	virtual bool destroyCheckpoint(int cpId) = 0;
 	virtual bool isValidCheckpoint(int cpId) = 0;
+
+	// ============================================================================
+	// Areas
+	// ============================================================================
+
+	/// CreateDynamicSphere analogue. Returns areaId or INVALID_STREAMER_ID (0).
+	virtual int createSphere(float posX, float posY, float posZ, float size,
+		int worldId = -1, int interiorId = -1, int playerId = -1, int priority = 0) = 0;
+	virtual bool destroyArea(int areaId) = 0;
+	virtual bool isValidArea(int areaId) = 0;
 
 	// ============================================================================
 	// Actors
@@ -268,6 +279,14 @@ struct IStreamerComponent : public IExtension
 	virtual bool setCoarseCellSize(float size) = 0;  // rebuilds grid
 	virtual float getCoarseCellDistance() = 0;
 	virtual bool setCoarseCellDistance(float distance) = 0;  // rebuilds grid
+
+	// ============================================================================
+	// Settings
+	// ============================================================================
+
+	virtual bool setVisibleItems(int type, int count, int playerId = -1) = 0;
+	virtual void toggleErrorCallback(bool enabled) = 0;
+	virtual bool setTickRate(int tickRate) = 0;
 
 	// ============================================================================
 	// Event handlers
